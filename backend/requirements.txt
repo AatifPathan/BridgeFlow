@@ -1,0 +1,18 @@
+# DataBridge backend dependencies - all free/open-source, no paid services.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+cryptography==43.0.1
+python-multipart==0.0.9
+
+# Testing (Phase 12)
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# Packaging (only needed to run build_release.py, not to run the app from source)
+pyinstaller==6.22.3
+
+# Everything else used (asyncio, socket, sqlite3, hashlib, zipfile,
+# uuid, json, struct, pathlib) is Python's standard library - no
+# install needed.
