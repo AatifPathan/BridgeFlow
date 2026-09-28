@@ -3,47 +3,9 @@
 **AirDrop-style peer-to-peer file and folder transfer over your local Wi-Fi / LAN.**
 No cloud, no accounts, no internet, no subscriptions. Two computers on the same network find each other, pair with a code, and send files directly.
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688) ![React](https://img.shields.io/badge/React-Vite-61dafb) ![Platform](https://img.shields.io/badge/Windows-exe%20included%20via%20build-lightgrey) ![Cost](https://img.shields.io/badge/cost-100%25%20free-brightgreen)
 
----
 
-## Table of contents
-
-1. [What it does](#what-it-does)
-2. [How it is delivered (read this first)](#how-it-is-delivered-read-this-first)
-3. [Part A - Build the app (one time, on ONE computer)](#part-a---build-the-app-one-time-on-one-computer)
-4. [Part B - Run it on the computers that will send and receive](#part-b---run-it-on-the-computers-that-will-send-and-receive)
-5. [Part C - Using Bridge Flow](#part-c---using-bridge-flow)
-6. [Troubleshooting](#troubleshooting)
-7. [Check that everything works (self-check)](#check-that-everything-works-self-check)
-8. [Running from source (for developers)](#running-from-source-for-developers)
-9. [How it works](#how-it-works)
-10. [Security notes and known limitations](#security-notes-and-known-limitations)
-11. [Project structure](#project-structure)
-12. [Tech stack and libraries](#tech-stack-and-libraries)
-13. [Roadmap](#roadmap)
-14. [License](#license)
-
----
-
-## What it does
-
-| Feature | Details |
-|---|---|
-| **Automatic device discovery** | Devices running Bridge Flow on the same network find each other using UDP broadcast. Shows name, IP address, and online/offline status. |
-| **Secure pairing** | A device is never trusted just because it is on your Wi-Fi. Pairing needs a 6-digit code shown on the other device. Only paired devices can send files. |
-| **File and folder transfer** | Send any file type, or a whole folder. The receiver gets the same folder structure. |
-| **Chunked transfers** | Data is sent in 4 MB chunks over TCP. |
-| **Resume after interruption** | If Wi-Fi drops or the app closes, the transfer continues from the last received chunk instead of starting again. |
-| **Integrity check** | Every transfer is verified with SHA-256. A mismatch is reported, never ignored. |
-| **Optional compression** | None / Standard / Maximum (ZIP). Shows original size, sent size and space saved. Already-compressed files (JPG, MP4, MP3, ZIP) correctly show little or no saving. |
-| **Live progress** | Percentage, speed and time remaining while a transfer runs. |
-| **Transfer history** | Every transfer is stored locally in SQLite: sent/received, status, size, compression, time. Searchable and filterable. |
-| **One-file app** | Packaged into a single `.exe`. The receiving computer needs **nothing** installed. |
-
----
-
-## How it is delivered (read this first)
+## How it is delivered 
 
 There are two different kinds of computer in this guide. Do not mix them up:
 
@@ -441,39 +403,6 @@ python build_release.py
 
 ---
 
-## How it works
-
-```
-+------------------- React frontend (served by the backend) -------------------+
-|  Dashboard | Devices | Send | Receive | History | Settings                    |
-+----------------------------------+-------------------------------------------+
-                                   |  REST + WebSocket (live progress)
-+----------------------------------v-------------------------------------------+
-|                          FastAPI application layer                            |
-+---+-------------+---------------+---------------+---------------+-------------+
-    |             |               |               |               |
- Discovery     Pairing        Transfer       Compression      Integrity
-  (UDP)      (6-digit code)  (TCP, chunks,   (ZIP)           (SHA-256)
-                              resume)
-    |             |               |
-    +-------------+---------------+---------> SQLite (devices, transfers, chunks, settings)
-```
-
-**Discovery (UDP).** Every 3 seconds each instance broadcasts a small JSON "ANNOUNCE" message (device id, name, transfer port) on UDP port 50999 and listens for the others. A device not heard from for 9 seconds is shown as offline. UDP is the right tool here: a lost packet is simply replaced by the next one, and TCP could not be used because you do not yet know who to connect to.
-
-**Pairing.** The requester asks the peer to pair; the peer shows a random 6-digit code on its own screen; the human types it on the requester. On a match both sides store each other as trusted along with a shared key. Untrusted devices are refused before any transfer request is read.
-
-**Transfer (TCP).** Each message is length-prefixed (4-byte length, then a JSON or binary body). The sender sends metadata (name, sizes, chunk count, SHA-256); the receiver accepts and replies with the list of chunks it still needs; the sender streams only those 4 MB chunks; the receiver writes each chunk directly at its byte offset and records it in SQLite.
-
-**Resume.** Because chunk state is stored in SQLite (not memory), a resumed transfer just asks "which chunks are missing?" and sends only those, even after the app itself was closed.
-
-**Integrity.** After the last chunk the receiver computes SHA-256 of the assembled file and compares it to the sender's hash. Only a match is marked complete (and unpacked, if compressed).
-
-**Packaging.** `build_release.py` builds the React app, copies it into the backend, and runs PyInstaller. The backend then serves the web page itself, so the final app is one process on one port.
-
-The full design document (database schema, protocol, roadmap) is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). It describes the intended design; the section below lists where the current implementation is simpler.
-
----
 
 ## Security notes and known limitations
 
@@ -524,38 +453,8 @@ bridgeflow/
 
 ---
 
-## Tech stack and libraries
+<img width="1344" height="611" alt="Screenshot 2026-09-28 115556" src="https://github.com/user-attachments/assets/c9bcbde7-994e-4cab-b3b1-4095f5ae9e24" />
+<img width="1332" height="599" alt="Screenshot 2026-09-28 115539" src="https://github.com/user-attachments/assets/e416bac5-496f-419a-aa79-5e9e2a70e774" />
+<img width="1347" height="605" alt="Screenshot 2026-09-28 115524" src="https://github.com/user-attachments/assets/f0074361-b0a2-4ada-9bb4-58b232834174" />
+<img width="892" height="549" alt="Screenshot 2026-09-28 071004" src="https://github.com/user-attachments/assets/9dcf5c19-12c0-4b64-934b-8376fb8ee264" />
 
-Everything is free and open source. No paid services, cloud accounts, or API keys.
-
-| Area | Tools |
-|---|---|
-| Backend | Python, FastAPI, uvicorn, `asyncio`, Python `socket` |
-| Frontend | React, Vite |
-| Database | SQLite (built into Python) |
-| Networking | UDP broadcast (discovery), TCP sockets (transfer), WebSocket (live progress) |
-| Security / integrity | `cryptography` (Fernet), `hashlib` SHA-256 |
-| Compression | Python `zipfile` |
-| Packaging | PyInstaller |
-| Testing | pytest, pytest-asyncio, `selfcheck.py` |
-
-**Python libraries** (installed by `pip install -r backend/requirements.txt`): `fastapi`, `uvicorn[standard]`, `pydantic`, `cryptography`, `python-multipart`, `pytest`, `pytest-asyncio`, `pyinstaller`.
-
-**JavaScript libraries** (installed automatically by `npm install` / `build_release.py`): `react`, `react-dom`, `vite`, `@vitejs/plugin-react`.
-
----
-
-## Roadmap
-
-- Manual accept / reject prompt for incoming transfers
-- Authenticated key exchange for pairing, and encryption of the data stream
-- Native file / folder picker window
-- Optional remote mode (rendezvous server with relay or NAT hole punching) for devices on different networks
-- Windows installer that also adds the firewall rule
-- Multiple simultaneous transfers and a pause button
-
----
-
-## License
-
-MIT. Add a `LICENSE` file to the repository root with the standard MIT text and your name.
